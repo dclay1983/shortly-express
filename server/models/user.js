@@ -44,6 +44,28 @@ class Users extends Model {
 
     return super.create.call(this, newUser);
   }
+
+  /**
+   * Authenticates a user record with the given username and password.
+   * This method querys a salt and hash of the stored password before hashing
+   * the attempted password then compares the results and returns a boolean for
+   * athentication.
+   * @param {Object} user - The user object.
+   * @param {string} user.username - The user's username.
+   * @param {string} user.attempted - The plaintext password.
+   * @returns {Promise<Object>} A promise that is fulfilled with the result of
+   * the record creation or rejected with the error that occured.
+   */
+  login({ username, password }) {
+    return super.get.call(this, username)
+      .then((cred) => {
+        if (!cred) {
+          throw new Error(401);
+        }
+      })
+
+    const isAuthenticated = this.compare(password, cred.password, cred.salt);
+  }
 }
 
 module.exports = new Users();
