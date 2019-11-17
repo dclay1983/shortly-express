@@ -20,12 +20,12 @@ app.use(express.static(path.join(__dirname, '../public')));
 app.get('/',
   (req, res) => {
     res.render('index');
-});
+  });
 
 app.get('/create',
   (req, res) => {
     res.render('index');
-});
+  });
 
 app.get('/links',
   (req, res, next) => {
@@ -79,34 +79,59 @@ app.post('/links',
 /************************************************************/
 
 app.post('/login', (req, res, next) => {
-  const user = {
-    username: req.body.username,
-    password: req.body.password
-  }
-  const isAuthenticated = models.Users.login(user);
-
-  if (!isAuthenticated) {
-    res.status(401);
-    res.send('Invalid username or password');
-  }
-
+  const username = req.body.username;
+  const password = req.body.password;
+  return models.Users.get({username})
+    .then(user => {
+      if (!user) {
+        res.set({'location': '/login'});
+        res.status(401);
+        throw null;
+      }
+      return models.Users.compare(password, user.password, user.salt);
+    })
+    .then(isAuthenticated => {
+      if (isAuthenticated) {
+        res.set({'location': '/'});
+        res.status(201);
+        throw null;
+      } else {
+        res.set({'location': '/login'});
+        res.status(401);
+        throw null;
+      }
+    })
+    .catch(all => {
+      if (all) {
+        res.status(500);
+      }
+      res.send();
+    });
 });
 
 app.post('/signup', (req, res, next) => {
-  const user = {
-    username: req.body.username,
-    password: req.body.password
-  };
-  models.Users.create(user)
-    .then((res, err) => {
-      if (err) {
-        res.status(400);
-        res.send();
-      } else {
-
+  const username = req.body.username;
+  const password = req.body.password;
+  return models.Users.get({ username })
+    .then(user => {
+      if (user) {
+        res.set({'location': '/signup'});
+        res.status(409);
+        throw user;
       }
-    });
+      return models.Users.create({username, password});
+    })
+    .then(user => {
+      res.set({'location': '/'});
+      res.status(201);
+      throw user;
+    })
+    .error(err => {
+      res.status(500).send();
+    })
+    .catch(user => res.send());
 });
+
 
 /************************************************************/
 // Handle the code parameter route last - if all other routes fail
